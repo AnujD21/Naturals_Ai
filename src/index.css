@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Root Variables ─────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+  --gold:   201, 168, 76;
+  --cream:  245, 237, 216;
+  --obsidian: 13, 12, 10;
+}
+
+/* ── Base ───────────────────────────────────────────────── */
+* {
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(var(--gold), 0.22);
+  color: #F5EDD8;
+}
+
+body {
+  @apply bg-obsidian text-warm-300 font-sans;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* ── Design Tokens ──────────────────────────────────────── */
+@layer components {
+
+  /* Card system */
+  .card {
+    @apply bg-surface-raised border border-border rounded-2xl;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .card-elevated {
+    @apply bg-surface-overlay border border-border rounded-2xl;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .card-gold {
+    @apply bg-surface-raised border border-surface-border rounded-2xl;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+    background-image: linear-gradient(135deg, rgba(201,168,76,0.04) 0%, transparent 70%);
+  }
+  .card-glass {
+    @apply bg-white/[0.025] backdrop-blur-xl border border-border rounded-2xl;
+  }
+
+  /* Gold divider line */
+  .gold-line {
+    @apply h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent;
+  }
+
+  /* Badge system */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold tracking-luxury uppercase;
+  }
+  .badge-gold {
+    @apply badge bg-gold-muted text-gold;
+    border: 1px solid rgba(201,168,76,0.18);
+  }
+  .badge-cream {
+    @apply badge bg-warm-800 text-cream-300;
+  }
+  .badge-success {
+    @apply badge bg-sage-muted text-sage;
+    border: 1px solid rgba(74,112,85,0.18);
+  }
+  .badge-warning {
+    @apply badge bg-ruby-muted text-ruby;
+    border: 1px solid rgba(155,59,59,0.18);
+  }
+
+  /* Section labels */
+  .section-label {
+    @apply text-2xs font-semibold uppercase tracking-luxury text-warm-600;
+  }
+  .section-label-gold {
+    @apply text-2xs font-semibold uppercase tracking-luxury text-gold-400;
+  }
+
+  /* Premium button */
+  .btn-gold {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-[13px] text-obsidian transition-all duration-200;
+    background: linear-gradient(135deg, #C9A84C 0%, #DFC06A 50%, #B8942E 100%);
+    box-shadow: 0 2px 12px rgba(201,168,76,0.25);
+  }
+  .btn-gold:hover {
+    box-shadow: 0 4px 20px rgba(201,168,76,0.38);
+    transform: translateY(-1px);
+  }
+  .btn-gold:active { transform: translateY(0); }
+  .btn-gold:disabled {
+    @apply opacity-40 cursor-not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-[13px] text-warm-400 border border-border hover:border-border-hover hover:text-warm-200 transition-all duration-200;
+  }
+
+  /* Skeleton */
+  .skeleton {
+    @apply bg-gradient-to-r from-surface-raised via-surface-subtle to-surface-raised bg-[length:200%_100%] animate-shimmer rounded-lg;
+  }
+
+  /* Luxury input */
+  .input-luxury {
+    @apply w-full bg-charcoal-200 border border-border rounded-xl px-4 py-2.5 text-[13px] text-warm-200 placeholder:text-warm-700 outline-none transition-all duration-200;
+  }
+  .input-luxury:focus {
+    border-color: rgba(201,168,76,0.35);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.08);
+  }
+
+  /* Ornamental heading with serif touch */
+  .heading-display {
+    @apply font-display text-cream-200 tracking-tight;
+  }
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar       { width: 3px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-warm-800 rounded-full; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { @apply bg-warm-700; }
+
+/* ── Transitions ────────────────────────────────────────── */
+.transition-base { @apply transition-all duration-200 ease-out; }
+.transition-slow { @apply transition-all duration-500 ease-out; }
+
+/* ── Gold glow ring ─────────────────────────────────────── */
+.glow-gold {
+  box-shadow: 0 0 0 1px rgba(201,168,76,0.15), 0 0 20px rgba(201,168,76,0.12);
+}
+
+/* ── Ambient radial gradient ────────────────────────────── */
+.ambient-gold {
+  background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(201,168,76,0.07) 0%, transparent 70%);
+}
