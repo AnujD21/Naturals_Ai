@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Scan, PlayCircle, BarChart3,
-  LogOut, Bell, Search, Sparkles, Wand2, Settings, X, Menu
+  LogOut, Bell, Search, Sparkles, Wand2, Settings, X, Menu, GraduationCap
 } from 'lucide-react';
 
 import { SalonProvider, useSalon } from './context/SalonContext';
@@ -16,6 +16,7 @@ import HairAnalysis    from './pages/HairAnalysis';
 import GuidedService   from './pages/GuidedService';
 import Analytics       from './pages/Analytics';
 import StylePreview    from './pages/StylePreview';
+import Training        from './pages/Training';
 import AIChat          from './components/AIChat';
 import ClientSelector, { ClientBadge } from './components/ClientSelector';
 import { searchClients } from './services/clientStore';
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { id: 'analysis',  path: '/analysis',  icon: Scan,            label: 'AI Consultation'  },
   { id: 'service',   path: '/service',   icon: PlayCircle,      label: 'Guided Service'   },
   { id: 'style',     path: '/style',     icon: Wand2,           label: 'Style Preview', badge: 'AI' },
+  { id: 'training',  path: '/training',  icon: GraduationCap,   label: 'Training', badge: 'NEW' },
 ];
 const MANAGER_NAV = { id: 'analytics', path: '/analytics', icon: BarChart3, label: 'Intelligence' };
 
@@ -396,6 +398,7 @@ function StylistShell() {
                     <StylePreview selectedClient={selectedClient} onSelectClient={() => setShowClientSelector(true)} />
                   } />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/training"  element={<Training />} />
                   {/* Default inner route */}
                   <Route path="*" element={
                     <Dashboard selectedClient={selectedClient} onSelectClient={setSelectedClient} onNavigate={navigateTo} />
