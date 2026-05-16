@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Camera, Upload, Sparkles, AlertTriangle, CheckCircle2,
-  Droplets, Layers, RotateCcw, ImagePlus, Palette, UserPlus
+  Droplets, Layers, RotateCcw, ImagePlus, Palette, UserPlus, X, ZoomIn
 } from 'lucide-react';
 import { analyzeHairImage } from '../services/gemini';
 import { saveAnalysis } from '../services/clientStore';
@@ -16,19 +16,6 @@ const ANALYSIS_STEPS = [
   'Generating recommendations…',
 ];
 
-const FALLBACK_RESULTS = {
-  confidence: 92,
-  hairType: 'Type 2B — Wavy',
-  porosity: 'High',
-  damageLevel: 'Moderate',
-  damageDetail: 'Heat damage concentrated at ends (last 3 cm)',
-  recommendations: [
-    { name: 'Olaplex No. 3', type: 'Bond Treatment', priority: 'High' },
-    { name: 'Kérastase Hydration Mask', type: 'Weekly Care', priority: 'Medium' },
-    { name: 'Trim 1.5 inches', type: 'Cut Recommendation', priority: 'High' },
-  ],
-  colorSuggestion: 'Level 7 Ash Brown with warm undertones',
-};
 
 export default function HairAnalysis({ selectedClient, onSelectClient }) {
   const [state, setState]               = useState('idle');
@@ -36,7 +23,45 @@ export default function HairAnalysis({ selectedClient, onSelectClient }) {
   const [step, setStep]                 = useState(0);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [error, setError]               = useState(null);
-  const fileInputRef = useRef(null);
+  const [cameraOpen, setCameraOpen]     = useState(false);
+  const [cameraError, setCameraError]   = useState(null);
+  const fileInputRef  = useRef(null);
+  const videoRef      = useRef(null);
+  const streamRef     = useRef(null);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setCameraOpen(false);
+    setCameraError(null);
+  }, []);
+
+  const openCamera = useCallback(async () => {
+    setCameraError(null);
+    setCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch {
+      setCameraError('Camera access denied. Please allow camera permission and try again.');
+    }
+  }, []);
+
+  useEffect(() => { return () => stopCamera(); }, [stopCamera]);
+
+  const capturePhoto = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    setUploadedImage({ url: dataUrl, base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', name: 'camera-capture.jpg' });
+    setError(null);
+    stopCamera();
+  }, [stopCamera]);
 
   const handleImageUpload = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -88,10 +113,11 @@ export default function HairAnalysis({ selectedClient, onSelectClient }) {
           confidence: response.data.confidence,
         });
       }
+      setState('done');
     } else {
-      setResults(FALLBACK_RESULTS);
+      setError(response.error || 'AI analysis failed. Please try again.');
+      setState('idle');
     }
-    setState('done');
   }, [uploadedImage, selectedClient]);
 
   const reset = () => {
@@ -139,15 +165,72 @@ export default function HairAnalysis({ selectedClient, onSelectClient }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-        {/* Left — Upload */}
+        {/* Left — Upload / Camera */}
         <div className="lg:col-span-2 space-y-3">
           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageUpload} className="hidden" />
 
+          {/* Camera modal overlay */}
+          <AnimatePresence>
+            {cameraOpen && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}>
+                <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                  className="relative rounded-2xl overflow-hidden"
+                  style={{ width: 380, background: '#161412', border: '1px solid rgba(201,168,76,0.18)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}>
+
+                  {/* Camera header */}
+                  <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                      <Camera size={14} className="text-gold" />
+                      <span className="text-[13px] font-semibold text-cream-200">Live Camera</span>
+                    </div>
+                    <button onClick={stopCamera} className="w-7 h-7 flex items-center justify-center rounded-lg text-warm-600 hover:text-warm-300 hover:bg-white/[0.05] transition-base">
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {/* Video preview */}
+                  <div className="relative bg-black" style={{ aspectRatio: '4/3' }}>
+                    {cameraError ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+                        <AlertTriangle size={28} className="text-ruby" />
+                        <p className="text-[13px] text-warm-500">{cameraError}</p>
+                      </div>
+                    ) : (
+                      <>
+                        <video ref={videoRef} autoPlay playsInline muted
+                          className="w-full h-full object-cover"
+                          onLoadedMetadata={e => e.target.play()} />
+                        {/* Corner guides */}
+                        {['top-3 left-3', 'top-3 right-3', 'bottom-3 left-3', 'bottom-3 right-3'].map((pos, i) => (
+                          <div key={i} className={`absolute ${pos} w-6 h-6`}
+                            style={{ borderColor: 'rgba(201,168,76,0.7)',
+                              borderTopWidth:    i < 2 ? 2 : 0, borderBottomWidth: i >= 2 ? 2 : 0,
+                              borderLeftWidth:   i % 2 === 0 ? 2 : 0, borderRightWidth: i % 2 === 1 ? 2 : 0 }} />
+                        ))}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Capture button */}
+                  <div className="flex items-center justify-center py-5">
+                    <button onClick={capturePhoto} disabled={!!cameraError}
+                      className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-30"
+                      style={{ background: 'linear-gradient(135deg, #C9A84C, #DFC06A)', boxShadow: '0 4px 20px rgba(201,168,76,0.35)' }}>
+                      <Camera size={22} className="text-obsidian" />
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Image preview or drop zone */}
           <div
-            onClick={() => state !== 'analyzing' && fileInputRef.current?.click()}
             onDragOver={e => e.preventDefault()}
             onDrop={handleDrop}
-            className={`relative overflow-hidden flex flex-col items-center justify-center rounded-2xl cursor-pointer transition-all duration-300 group ${uploadedImage ? '' : 'aspect-[4/3]'} ${state === 'analyzing' ? 'pointer-events-none' : ''}`}
+            className={`relative overflow-hidden flex flex-col items-center justify-center rounded-2xl transition-all duration-300 group ${uploadedImage ? '' : 'aspect-[4/3]'} ${state === 'analyzing' ? 'pointer-events-none' : ''}`}
             style={{ background: '#161412', border: `1px solid ${uploadedImage ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.07)'}` }}
           >
             {/* Scanner line */}
@@ -163,37 +246,50 @@ export default function HairAnalysis({ selectedClient, onSelectClient }) {
                 />
               )}
             </AnimatePresence>
-
             {state === 'analyzing' && (
               <div className="absolute inset-0 opacity-[0.06] z-10"
-                style={{
-                  backgroundImage: 'linear-gradient(rgba(201,168,76,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.8) 1px, transparent 1px)',
-                  backgroundSize: '32px 32px',
-                }} />
+                style={{ backgroundImage: 'linear-gradient(rgba(201,168,76,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.8) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
             )}
 
             {uploadedImage ? (
               <div className="w-full relative">
                 <img src={uploadedImage.url} alt="Uploaded hair" className="w-full h-auto max-h-[400px] object-cover rounded-2xl" />
                 {state === 'idle' && (
-                  <div className="absolute inset-0 bg-obsidian/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-cream-200 text-[13px] font-medium">
-                      <ImagePlus size={16} /> Change Photo
-                    </div>
+                  <div className="absolute inset-0 bg-obsidian/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-3">
+                    <button onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium text-obsidian"
+                      style={{ background: 'linear-gradient(135deg, #C9A84C, #DFC06A)' }}>
+                      <ImagePlus size={13} /> Replace
+                    </button>
+                    <button onClick={openCamera}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium text-cream-200"
+                      style={{ background: 'rgba(255,255,255,0.12)' }}>
+                      <Camera size={13} /> Retake
+                    </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex flex-col items-center text-center px-8 py-10 z-10">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-105"
+              <div className="flex flex-col items-center text-center px-8 py-10 z-10 w-full">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
                   style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.14)' }}>
-                  <Camera size={22} className="text-warm-700" strokeWidth={1.5} />
+                  <ZoomIn size={22} className="text-warm-700" strokeWidth={1.5} />
                 </div>
-                <p className="text-[13px] font-semibold text-cream-300 mb-1">Upload Hair Photo</p>
-                <p className="text-2xs text-warm-700 max-w-[200px] mb-5 leading-relaxed">Click to browse or drag & drop. JPEG, PNG or WebP.</p>
-                <div className="flex items-center gap-1.5 text-2xs text-gold font-medium">
-                  <Upload size={11} /> Browse files
+                <p className="text-[13px] font-semibold text-cream-300 mb-1">Add Hair Photo</p>
+                <p className="text-2xs text-warm-700 max-w-[200px] mb-6 leading-relaxed">Take a live photo or upload from your device</p>
+                <div className="flex items-center gap-2 w-full max-w-[220px]">
+                  <button onClick={openCamera}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold text-obsidian transition-all duration-200"
+                    style={{ background: 'linear-gradient(135deg, #C9A84C, #DFC06A)', boxShadow: '0 2px 12px rgba(201,168,76,0.25)' }}>
+                    <Camera size={13} /> Camera
+                  </button>
+                  <button onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold text-warm-400 transition-all duration-200"
+                    style={{ background: '#1C1A17', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <Upload size={13} /> Upload
+                  </button>
                 </div>
+                <p className="text-2xs text-warm-800 mt-4">or drag & drop anywhere above</p>
               </div>
             )}
           </div>

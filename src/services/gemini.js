@@ -83,7 +83,7 @@ export async function askGemini(question, history = []) {
         ];
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -108,67 +108,93 @@ export async function askGemini(question, history = []) {
  * @returns {object} Parsed analysis results
  */
 export async function analyzeHairImage(base64Image, mimeType, clientContext = null) {
-    try {
-        let contextPrompt = '';
-        if (clientContext) {
-            contextPrompt = `\n\nClient context:
+    const key = import.meta.env.VITE_GEMINI_API_KEY;
+
+    if (!key) {
+        return { success: false, error: 'No API key configured. Add VITE_GEMINI_API_KEY to your .env file.' };
+    }
+
+    let contextPrompt = '';
+    if (clientContext) {
+        contextPrompt = `\n\nClient context:
 - Name: ${clientContext.name || 'Unknown'}
 - Previous color history: ${clientContext.colorHistory?.join(', ') || 'None'}
 - Known allergies: ${clientContext.allergies || 'Not recorded'}
 - Notes: ${clientContext.notes || 'None'}
 Consider this history when making recommendations.`;
-        }
+    }
 
+    try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
             {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{
                         parts: [
                             {
                                 text: `You are SalonPilot AI, a professional hair analysis system. Analyze this hair image and provide a structured assessment.${contextPrompt}
 
-Respond in this exact JSON format (no markdown, just raw JSON):
+Return ONLY a raw JSON object with no markdown, no code fences, no explanation. Exactly this structure:
 {
-  "confidence": <number 0-100>,
-  "hairType": "<hair type classification e.g. Type 2B — Wavy>",
-  "porosity": "<Low/Medium/High>",
-  "damageLevel": "<None/Mild/Moderate/Severe>",
-  "damageDetail": "<brief description of damage observed>",
+  "confidence": 85,
+  "hairType": "Type 2B — Wavy",
+  "porosity": "High",
+  "damageLevel": "Moderate",
+  "damageDetail": "Heat damage visible at ends, some frizz mid-shaft",
   "recommendations": [
-    { "name": "<product or service name>", "type": "<category>", "priority": "<High/Medium/Low>" }
+    { "name": "Olaplex No. 3", "type": "Bond Treatment", "priority": "High" },
+    { "name": "Hydration Mask", "type": "Weekly Care", "priority": "Medium" }
   ],
-  "colorSuggestion": "<suggested color or treatment based on current state>"
+  "colorSuggestion": "Level 7 Ash Brown with balayage for dimension"
 }`
                             },
                             {
-                                inlineData: {
-                                    mimeType: mimeType,
-                                    data: base64Image
-                                }
+                                inlineData: { mimeType, data: base64Image }
                             }
                         ]
-                    }]
+                    }],
+                    generationConfig: { temperature: 0.2 }
                 })
             }
         );
 
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-        // Parse JSON from response — handle potential markdown code blocks
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        // Surface API-level errors
+        if (data.error) {
+            _apiStatus = false;
+            return { success: false, error: `Gemini API error: ${data.error.message}` };
+        }
+
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+        if (!text) {
+            _apiStatus = false;
+            return { success: false, error: 'Gemini returned an empty response.' };
+        }
+
+        // Strip markdown code fences if present, then extract JSON object
+        const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+
         if (jsonMatch) {
-            _apiStatus = true;
-            return { success: true, data: JSON.parse(jsonMatch[0]) };
+            try {
+                const parsed = JSON.parse(jsonMatch[0]);
+                _apiStatus = true;
+                return { success: true, data: parsed };
+            } catch (parseErr) {
+                _apiStatus = false;
+                return { success: false, error: `JSON parse failed: ${parseErr.message}`, raw: text };
+            }
         }
 
         _apiStatus = false;
-        return { success: false, error: 'Could not parse AI response', raw: text };
+        return { success: false, error: 'Could not find JSON in Gemini response.', raw: text };
+
     } catch (err) {
         _apiStatus = false;
-        return { success: false, error: err.message || 'API Connection Error' };
+        return { success: false, error: err.message || 'Network error connecting to Gemini.' };
     }
 }
