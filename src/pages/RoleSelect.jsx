@@ -44,7 +44,7 @@ export default function RoleSelect() {
           style={{ background: 'radial-gradient(circle, rgba(74,112,85,0.15) 0%, transparent 70%)', filter: 'blur(60px)' }} />
       </div>
 
-      <div className="relative z-10 w-full max-w-3xl px-6">
+      <div className="relative z-10 w-full max-w-3xl px-4 sm:px-6">
 
         {/* Brand mark */}
         <motion.div
@@ -57,8 +57,8 @@ export default function RoleSelect() {
             <Sparkles size={20} className="text-obsidian" />
           </div>
           <div className="flex items-baseline gap-2 mb-3">
-            <span className="text-3xl font-display text-cream-200 tracking-tight">Naturals</span>
-            <span className="text-3xl font-display text-gold tracking-tight">AI</span>
+            <span className="text-2xl sm:text-3xl font-display text-cream-200 tracking-tight">Naturals</span>
+            <span className="text-2xl sm:text-3xl font-display text-gold tracking-tight">AI</span>
           </div>
           <p className="text-sm text-warm-600 tracking-wide">Intelligent Salon Operations Platform</p>
         </motion.div>
@@ -78,7 +78,7 @@ export default function RoleSelect() {
               transition={{ duration: 0.5, delay: 0.3 + i * 0.12, ease: [0.22, 1, 0.36, 1] }}
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
               whileTap={{ scale: 0.98 }}
-              className="group relative text-left p-7 rounded-2xl overflow-hidden transition-all duration-300"
+              className="group relative text-left p-5 sm:p-7 rounded-2xl overflow-hidden transition-all duration-300"
               style={{
                 background: role.gradient,
                 border: `1px solid ${role.border}`,

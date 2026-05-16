@@ -147,7 +147,7 @@ export default function Dashboard({ onSelectClient, onNavigate }) {
 
       {/* KPI row */}
       <motion.div variants={stagger} initial="hidden" animate="show"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         {kpis.map((kpi, i) => (
           <motion.div key={i} variants={fadeUp}
             className="relative overflow-hidden rounded-2xl p-5 group cursor-default transition-all duration-300 hover:shadow-card-hover"
